@@ -14,14 +14,22 @@
       </svg>
     </button>
     <span class="brand">
-      <svg viewBox="0 0 24 24" width="26" height="26">
-        <rect x="3" y="4" width="18" height="17" rx="2" fill="#1a73e8" />
-        <rect x="3" y="4" width="18" height="4" rx="2" fill="#185abc" />
-        <text x="12" y="17" text-anchor="middle" font-size="9" fill="#fff" font-weight="700">
+      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+        <rect x="2" y="3" width="15" height="15" rx="4" fill="#1a73e8" />
+        <text x="8" y="12" text-anchor="middle" font-size="7.5" fill="#fff" font-weight="700">
           {{ store.today().getDate() }}
         </text>
+        <rect
+          x="12.5"
+          y="12.5"
+          width="9.5"
+          height="9.5"
+          rx="2.5"
+          fill="#f5a623"
+          style="stroke: var(--color-surface); stroke-width: 1.4px"
+        />
       </svg>
-      Lịch
+      <span class="brand-name">Timebox</span>
     </span>
   </div>
 

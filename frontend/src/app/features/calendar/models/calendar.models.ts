@@ -32,9 +32,20 @@ export interface CalendarEvent {
   start: Date;
   end: Date;
   allDay: boolean;
+  /** Có mặt khi sự kiện là 1 lần lặp lại trong 1 chuỗi (xem RecurrenceRule). */
+  recurrenceId?: string;
 }
 
-export type CalendarEventDraft = Omit<CalendarEvent, 'id'>;
+export type CalendarEventDraft = Omit<CalendarEvent, 'id' | 'recurrenceId'>;
+
+export type RecurrenceFreq = 'daily' | 'weekly';
+
+export interface RecurrenceRule {
+  freq: RecurrenceFreq;
+  /** 0 = Chủ Nhật .. 6 = Thứ Bảy. Chỉ dùng khi freq === 'weekly'. */
+  byDay?: number[];
+  until: Date;
+}
 
 export type AttendeeStatus = 'pending' | 'accepted' | 'declined';
 

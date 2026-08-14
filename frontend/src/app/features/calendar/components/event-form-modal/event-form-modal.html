@@ -58,6 +58,51 @@
         <p class="field-error">Thời gian kết thúc phải sau thời gian bắt đầu.</p>
       }
 
+      @if (!event()) {
+        <div class="row repeat-row">
+          <span class="presets-label">Lặp lại:</span>
+          <select
+            class="reminder-type-select"
+            [value]="repeatFreq()"
+            (change)="setRepeatFreq($any($event.target).value)"
+          >
+            <option value="none">Không lặp lại</option>
+            <option value="daily">Hằng ngày</option>
+            <option value="weekly">Hằng tuần (chọn ngày)</option>
+          </select>
+        </div>
+
+        @if (repeatFreq() === 'weekly') {
+          <div class="row weekday-picker">
+            @for (d of weekdayOptions; track d.value) {
+              <button
+                type="button"
+                class="weekday-chip"
+                [class.active]="repeatDays().has(d.value)"
+                (click)="toggleRepeatDay(d.value)"
+              >
+                {{ d.label }}
+              </button>
+            }
+          </div>
+        }
+
+        @if (repeatFreq() !== 'none') {
+          <div class="row">
+            <label class="presets-label" for="repeat-until-input">Lặp lại đến hết ngày:</label>
+            <input
+              id="repeat-until-input"
+              class="date-input"
+              type="date"
+              [formControl]="repeatUntil"
+            />
+          </div>
+        }
+        @if (repeatError()) {
+          <p class="field-error">{{ repeatError() }}</p>
+        }
+      }
+
       @if (checkingConflicts()) {
         <p class="hint-text">Đang kiểm tra trùng lịch…</p>
       }
@@ -247,10 +292,19 @@
     </div>
 
     <footer class="modal-footer">
-      @if (event()) {
-        <button type="button" class="text-btn danger" (click)="remove()">
-          Xoá
-        </button>
+      @if (event(); as evt) {
+        @if (evt.recurrenceId) {
+          <button type="button" class="text-btn danger" (click)="remove()">
+            Xoá sự kiện này
+          </button>
+          <button type="button" class="text-btn danger" (click)="remove('all')">
+            Xoá cả chuỗi
+          </button>
+        } @else {
+          <button type="button" class="text-btn danger" (click)="remove()">
+            Xoá
+          </button>
+        }
       }
       <span class="spacer"></span>
       <button type="button" class="text-btn" (click)="cancel()">Huỷ</button>

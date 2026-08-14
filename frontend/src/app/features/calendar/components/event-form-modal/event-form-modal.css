@@ -215,6 +215,36 @@
   background: var(--color-surface-hover);
 }
 
+.repeat-row {
+  gap: 0.5rem;
+}
+
+.weekday-picker {
+  gap: 0.35rem;
+}
+
+.weekday-chip {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  border-radius: 999px;
+  width: 2.1rem;
+  height: 2.1rem;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.weekday-chip:hover {
+  background: var(--color-surface-hover);
+}
+
+.weekday-chip.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-weight: 600;
+}
+
 .text-input {
   width: 100%;
   border: 1px solid var(--color-border-strong);

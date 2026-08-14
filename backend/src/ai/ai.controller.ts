@@ -35,7 +35,7 @@ export class AiController {
     });
 
     if (parsed.intent === 'create_event' && parsed.title && parsed.start_at && parsed.end_at) {
-      const event = await this.eventsService.create(
+      const [event] = await this.eventsService.create(
         supabase,
         {
           calendarId: dto.calendarId,

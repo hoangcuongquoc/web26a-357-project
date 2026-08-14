@@ -18,6 +18,8 @@ import {
   CALENDAR_COLOR_HEX,
   CalendarEvent,
   ConflictEvent,
+  RecurrenceFreq,
+  RecurrenceRule,
   ReminderDraft,
   ReminderType,
 } from '../../models/calendar.models';
@@ -28,6 +30,7 @@ import {
   parseTime24,
   startOfDay,
   toDateInputValue,
+  WEEKDAY_SHORT_VI,
 } from '../../utils/date-utils';
 import { CommentsSection } from '../comments-section/comments-section';
 import { TimePicker } from '../time-picker/time-picker';
@@ -87,6 +90,14 @@ export class EventFormModal {
   readonly saving = signal(false);
   readonly saveError = signal<string | null>(null);
 
+  readonly weekdayOptions: { value: number; label: string }[] = [1, 2, 3, 4, 5, 6, 0].map(
+    (value) => ({ value, label: WEEKDAY_SHORT_VI[value] }),
+  );
+  readonly repeatFreq = signal<'none' | RecurrenceFreq>('none');
+  readonly repeatDays = signal<Set<number>>(new Set());
+  readonly repeatUntil = new FormControl('', { nonNullable: true });
+  readonly repeatError = signal<string | null>(null);
+
   readonly attendees = signal<Attendee[]>([]);
   readonly inviteEmailControl = new FormControl('', {
     nonNullable: true,
@@ -141,6 +152,10 @@ export class EventFormModal {
       this.inviteError.set(null);
       this.reminderSelections.set(new Map());
       this.customReminderMinutes.reset(null);
+      this.repeatFreq.set('none');
+      this.repeatDays.set(new Set());
+      this.repeatUntil.reset('');
+      this.repeatError.set(null);
       if (evt) {
         void this.loadAttendees(evt.id);
         void this.loadReminders(evt.id, evt.start);
@@ -299,6 +314,50 @@ export class EventFormModal {
     }
   }
 
+  setRepeatFreq(value: 'none' | RecurrenceFreq): void {
+    this.repeatFreq.set(value);
+    this.repeatError.set(null);
+    if (value === 'weekly' && this.repeatDays().size === 0) {
+      const start = fromDateInputValue(this.form.getRawValue().startDate);
+      this.repeatDays.set(new Set([start.getDay()]));
+    }
+  }
+
+  toggleRepeatDay(day: number): void {
+    this.repeatDays.update((set) => {
+      const next = new Set(set);
+      if (next.has(day)) next.delete(day);
+      else next.add(day);
+      return next;
+    });
+  }
+
+  private buildRecurrence(start: Date): RecurrenceRule | undefined {
+    const freq = this.repeatFreq();
+    if (freq === 'none') return undefined;
+
+    const untilValue = this.repeatUntil.value;
+    if (!untilValue) {
+      this.repeatError.set('Vui lòng chọn ngày kết thúc lặp lại.');
+      return undefined;
+    }
+    const until = fromDateInputValue(untilValue);
+    until.setHours(23, 59, 59, 999);
+    if (until.getTime() < start.getTime()) {
+      this.repeatError.set('Ngày kết thúc lặp lại phải sau ngày bắt đầu.');
+      return undefined;
+    }
+
+    const byDay = freq === 'weekly' ? Array.from(this.repeatDays()) : undefined;
+    if (freq === 'weekly' && (!byDay || byDay.length === 0)) {
+      this.repeatError.set('Vui lòng chọn ít nhất 1 ngày trong tuần.');
+      return undefined;
+    }
+
+    this.repeatError.set(null);
+    return { freq, byDay, until };
+  }
+
   applyDuration(minutes: number): void {
     const { startDate, startTime } = this.form.getRawValue();
     const start = parseTime24(startTime, fromDateInputValue(startDate));
@@ -340,6 +399,13 @@ export class EventFormModal {
     }
     this.rangeError.set(false);
 
+    const current = this.event();
+    let recurrence: RecurrenceRule | undefined;
+    if (!current && this.repeatFreq() !== 'none') {
+      recurrence = this.buildRecurrence(start);
+      if (!recurrence) return;
+    }
+
     const draft = {
       title: v.title.trim(),
       calendarId: v.calendarId,
@@ -352,15 +418,14 @@ export class EventFormModal {
 
     this.saving.set(true);
     try {
-      const current = this.event();
-      let eventId: string;
+      let eventIds: string[];
       if (current) {
         await this.store.updateEvent(current.id, draft);
-        eventId = current.id;
+        eventIds = [current.id];
       } else {
-        eventId = (await this.store.createEvent(draft)).id;
+        eventIds = (await this.store.createEvent(draft, recurrence)).map((e) => e.id);
       }
-      await this.saveReminders(eventId);
+      await Promise.all(eventIds.map((eventId) => this.saveReminders(eventId)));
       this.closed.emit();
     } catch (err) {
       this.saveError.set(extractErrorMessage(err));
@@ -369,9 +434,9 @@ export class EventFormModal {
     }
   }
 
-  remove(): void {
+  remove(scope?: 'all'): void {
     const current = this.event();
-    if (current) this.store.deleteEvent(current.id);
+    if (current) this.store.deleteEvent(current.id, scope);
     this.closed.emit();
   }
 

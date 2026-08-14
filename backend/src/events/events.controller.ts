@@ -87,7 +87,11 @@ export class EventsController {
   }
 
   @Delete(':id')
-  remove(@CurrentSupabase() supabase: SupabaseClient, @Param('id') id: string) {
-    return this.eventsService.remove(supabase, id);
+  remove(
+    @CurrentSupabase() supabase: SupabaseClient,
+    @Param('id') id: string,
+    @Query('scope') scope?: string,
+  ) {
+    return this.eventsService.remove(supabase, id, scope === 'all');
   }
 }

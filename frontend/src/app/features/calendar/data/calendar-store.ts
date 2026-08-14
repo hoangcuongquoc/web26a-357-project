@@ -17,6 +17,7 @@ import {
   ConflictEvent,
   EventComment,
   Note,
+  RecurrenceRule,
   Reminder,
   ReminderDraft,
 } from '../models/calendar.models';
@@ -39,6 +40,7 @@ interface EventApiDto {
   start: string;
   end: string;
   allDay: boolean;
+  recurrenceId?: string;
 }
 
 interface ConflictApiDto {
@@ -131,6 +133,7 @@ function toCalendarEvent(dto: EventApiDto): CalendarEvent {
     start: new Date(dto.start),
     end: new Date(dto.end),
     allDay: dto.allDay,
+    recurrenceId: dto.recurrenceId,
   };
 }
 
@@ -391,14 +394,29 @@ export class CalendarStore {
     this.sidebarOpen.update((v) => !v);
   }
 
-  async createEvent(draft: CalendarEventDraft): Promise<CalendarEvent> {
+  /**
+   * Trả về mảng vì tạo sự kiện lặp lại (recurrence) sinh ra nhiều row events
+   * thật cùng lúc — sự kiện không lặp lại vẫn trả về mảng 1 phần tử.
+   */
+  async createEvent(
+    draft: CalendarEventDraft,
+    recurrence?: RecurrenceRule,
+  ): Promise<CalendarEvent[]> {
+    const payload = toEventApiPayload(draft);
+    if (recurrence) {
+      payload['recurrence'] = {
+        freq: recurrence.freq,
+        byDay: recurrence.byDay,
+        until: recurrence.until.toISOString(),
+      };
+    }
     const created = await firstValueFrom(
-      this.http.post<EventApiDto>(`${this.apiUrl}/events`, toEventApiPayload(draft)),
+      this.http.post<EventApiDto[]>(`${this.apiUrl}/events`, payload),
     );
-    const event = toCalendarEvent(created);
-    this.markSelfOrigin(event.id);
-    this.events.update((list) => [...list, event]);
-    return event;
+    const events = created.map(toCalendarEvent);
+    for (const event of events) this.markSelfOrigin(event.id);
+    this.events.update((list) => [...list, ...events]);
+    return events;
   }
 
   async updateEvent(id: string, changes: Partial<CalendarEventDraft>): Promise<void> {
@@ -410,10 +428,21 @@ export class CalendarStore {
     this.events.update((list) => list.map((e) => (e.id === id ? event : e)));
   }
 
-  async deleteEvent(id: string): Promise<void> {
-    this.markSelfOrigin(id);
-    await firstValueFrom(this.http.delete<void>(`${this.apiUrl}/events/${id}`));
-    this.events.update((list) => list.filter((e) => e.id !== id));
+  /** scope 'all' xoá toàn bộ chuỗi lặp lại chứa sự kiện này (nếu có). */
+  async deleteEvent(id: string, scope?: 'all'): Promise<void> {
+    const recurrenceId = this.events().find((e) => e.id === id)?.recurrenceId;
+    const seriesIds =
+      scope === 'all' && recurrenceId
+        ? this.events()
+            .filter((e) => e.recurrenceId === recurrenceId)
+            .map((e) => e.id)
+        : [id];
+    for (const seriesId of seriesIds) this.markSelfOrigin(seriesId);
+
+    const query = scope === 'all' ? '?scope=all' : '';
+    await firstValueFrom(this.http.delete<void>(`${this.apiUrl}/events/${id}${query}`));
+    const idsToRemove = new Set(seriesIds);
+    this.events.update((list) => list.filter((e) => !idsToRemove.has(e.id)));
   }
 
   async moveEventToDay(id: string, targetDay: Date): Promise<void> {

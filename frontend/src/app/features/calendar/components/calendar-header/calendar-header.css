@@ -24,6 +24,12 @@
   white-space: nowrap;
 }
 
+.brand-name {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text-secondary);
+}
+
 .center {
   display: flex;
   align-items: center;

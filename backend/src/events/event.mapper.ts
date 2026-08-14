@@ -13,6 +13,8 @@ export interface EventRow {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  recurrence_id: string | null;
+  recurrence_rule: unknown | null;
 }
 
 export interface EventDto {
@@ -24,6 +26,7 @@ export interface EventDto {
   start: string;
   end: string;
   allDay: boolean;
+  recurrenceId?: string;
 }
 
 export function toEventDto(row: EventRow): EventDto {
@@ -36,6 +39,7 @@ export function toEventDto(row: EventRow): EventDto {
     start: row.start_at,
     end: row.end_at,
     allDay: row.all_day,
+    recurrenceId: row.recurrence_id ?? undefined,
   };
 }
 

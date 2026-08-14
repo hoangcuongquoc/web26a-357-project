@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   InternalServerErrorException,
@@ -28,6 +29,7 @@ import {
 } from './event.mapper';
 
 const INVITE_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_RECURRENCE_OCCURRENCES = 366;
 
 interface InviteEventContext {
   title: string;
@@ -67,22 +69,84 @@ export class EventsService {
     supabase: SupabaseClient,
     dto: CreateEventDto,
     createdBy: string,
-  ): Promise<EventDto> {
+  ): Promise<EventDto[]> {
+    const rows = dto.recurrence
+      ? this.buildRecurringRows(dto, createdBy)
+      : [toEventInsertRow(dto, createdBy)];
+
     const { data, error } = await supabase
       .from('events')
-      .insert(toEventInsertRow(dto, createdBy))
+      .insert(rows)
       .select('*')
-      .returns<EventRow[]>()
-      .single();
+      .returns<EventRow[]>();
 
     if (error) throw new InternalServerErrorException(error.message);
-    const eventDto = toEventDto(data);
-    this.realtimeGateway.emitToCalendar(
-      eventDto.calendarId,
-      'event:created',
-      eventDto,
-    );
-    return eventDto;
+    const eventDtos = data.map(toEventDto);
+    for (const eventDto of eventDtos) {
+      this.realtimeGateway.emitToCalendar(
+        eventDto.calendarId,
+        'event:created',
+        eventDto,
+      );
+    }
+    return eventDtos;
+  }
+
+  /**
+   * Mỗi lần lặp lại được materialize thành 1 row events thật (không ảo hoá
+   * lúc query) để reminders/comments/attendees vẫn hoạt động bình thường vì
+   * chúng tham chiếu event_id thật. Các row cùng chuỗi share recurrence_id.
+   */
+  private buildRecurringRows(
+    dto: CreateEventDto,
+    createdBy: string,
+  ): Record<string, unknown>[] {
+    const rule = dto.recurrence!;
+    const start = new Date(dto.start);
+    const end = new Date(dto.end);
+    const durationMs = end.getTime() - start.getTime();
+    const until = new Date(rule.until);
+    if (Number.isNaN(until.getTime()) || until.getTime() < start.getTime()) {
+      throw new BadRequestException('Ngày kết thúc lặp lại không hợp lệ');
+    }
+
+    const byDay =
+      rule.freq === 'weekly'
+        ? new Set(rule.byDay && rule.byDay.length > 0 ? rule.byDay : [start.getDay()])
+        : null;
+
+    const recurrenceId = randomUUID();
+    const recurrenceRule = { freq: rule.freq, byDay: rule.byDay, until: rule.until };
+
+    const occurrenceStarts: Date[] = [];
+    const cursor = new Date(start);
+    while (cursor.getTime() <= until.getTime()) {
+      if (!byDay || byDay.has(cursor.getDay())) {
+        if (occurrenceStarts.length >= MAX_RECURRENCE_OCCURRENCES) {
+          throw new BadRequestException(
+            'Chuỗi sự kiện lặp lại quá dài, vui lòng chọn khoảng ngắn hơn',
+          );
+        }
+        occurrenceStarts.push(new Date(cursor));
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    if (occurrenceStarts.length === 0) {
+      throw new BadRequestException('Không có ngày nào khớp với quy tắc lặp lại đã chọn');
+    }
+
+    return occurrenceStarts.map((occStart) => ({
+      calendar_id: dto.calendarId,
+      title: dto.title,
+      location: dto.location ?? null,
+      description: dto.description ?? null,
+      start_at: occStart.toISOString(),
+      end_at: new Date(occStart.getTime() + durationMs).toISOString(),
+      all_day: dto.allDay,
+      created_by: createdBy,
+      recurrence_id: recurrenceId,
+      recurrence_rule: recurrenceRule,
+    }));
   }
 
   async update(
@@ -113,11 +177,33 @@ export class EventsService {
     return eventDto;
   }
 
-  async remove(supabase: SupabaseClient, id: string): Promise<void> {
-    const { data, error } = await supabase
-      .from('events')
-      .delete()
-      .eq('id', id)
+  async remove(
+    supabase: SupabaseClient,
+    id: string,
+    wholeSeries = false,
+  ): Promise<void> {
+    let deleteQuery = supabase.from('events').delete();
+
+    if (wholeSeries) {
+      const { data: eventRow, error: lookupError } = await supabase
+        .from('events')
+        .select('id, recurrence_id')
+        .eq('id', id)
+        .maybeSingle<{ id: string; recurrence_id: string | null }>();
+      if (lookupError) throw new InternalServerErrorException(lookupError.message);
+      if (!eventRow) {
+        throw new NotFoundException(
+          'Event not found or you do not have permission to delete it',
+        );
+      }
+      deleteQuery = eventRow.recurrence_id
+        ? deleteQuery.eq('recurrence_id', eventRow.recurrence_id)
+        : deleteQuery.eq('id', id);
+    } else {
+      deleteQuery = deleteQuery.eq('id', id);
+    }
+
+    const { data, error } = await deleteQuery
       .select('id, calendar_id')
       .returns<{ id: string; calendar_id: string }[]>();
 
@@ -127,9 +213,11 @@ export class EventsService {
         'Event not found or you do not have permission to delete it',
       );
     }
-    this.realtimeGateway.emitToCalendar(data[0].calendar_id, 'event:deleted', {
-      id: data[0].id,
-    });
+    for (const row of data) {
+      this.realtimeGateway.emitToCalendar(row.calendar_id, 'event:deleted', {
+        id: row.id,
+      });
+    }
   }
 
   async checkConflicts(
