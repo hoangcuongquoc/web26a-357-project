@@ -51,6 +51,9 @@
       />
     </div>
 
+    <div class="header-divider" aria-hidden="true"></div>
+
+    <div class="utility-cluster">
     <button type="button" class="today-btn import-btn" (click)="openImport.emit()">
       📥 Import File
     </button>
@@ -178,6 +181,7 @@
     </div>
 
     <app-theme-toggle />
+    </div>
 
     @if (userEmail()) {
       <div class="user-menu">

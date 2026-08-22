@@ -12,6 +12,7 @@
         (inviteClicked)="openInvite($event)"
         (createCalendarClicked)="createCalendarModalOpen.set(true)"
         (createGroupClicked)="createGroupModalOpen.set(true)"
+        (openAiChat)="aiChat.toggle()"
       />
     }
 
@@ -97,4 +98,4 @@
 <app-notification-popup (viewDetail)="onViewDetail($event)" />
 <app-holiday-popup />
 <app-notes-widget />
-<app-ai-chat-widget (openManualForm)="openManualFormFromAi($event)" />
+<app-ai-chat-widget #aiChat (openManualForm)="openManualFormFromAi($event)" />

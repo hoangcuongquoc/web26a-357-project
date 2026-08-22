@@ -2,7 +2,7 @@
   <div class="day-header-row" [style.padding-right.px]="scrollbarWidth()">
     <div class="gutter-spacer"></div>
     @for (day of days(); track day.getTime()) {
-      <div class="day-header-cell">
+      <div class="day-header-cell" [class.weekend]="isWeekend(day)" [class.today]="isToday(day)">
         <span class="wd">{{ weekdayShort(day) }}</span>
         <span class="dn" [class.today]="isToday(day)">{{ day.getDate() }}</span>
       </div>
@@ -37,7 +37,12 @@
 
       <div class="columns">
         @for (day of days(); track day.getTime()) {
-          <div class="day-col" (mousedown)="onGridMouseDown($event, day)">
+          <div
+            class="day-col"
+            [class.weekend]="isWeekend(day)"
+            [class.today]="isToday(day)"
+            (mousedown)="onGridMouseDown($event, day)"
+          >
             @for (h of hours; track h) {
               <div class="hour-line" [style.top.px]="h * HOUR_HEIGHT"></div>
             }

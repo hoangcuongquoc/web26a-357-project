@@ -136,6 +136,11 @@ export class TimeGridView {
     return isSameDay(day, this.store.today());
   }
 
+  isWeekend(day: Date): boolean {
+    const dow = day.getDay();
+    return dow === 0 || dow === 6;
+  }
+
   eventsFor(day: Date): PositionedEvent[] {
     return this.timedEventsByDay().get(this.dayKey(day)) ?? [];
   }

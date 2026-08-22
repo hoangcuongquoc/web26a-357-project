@@ -58,14 +58,16 @@
 .day-cell {
   border: none;
   background: none;
-  border-radius: 50%;
+  border-radius: var(--radius-xs);
   aspect-ratio: 1;
-  font-size: 0.7rem;
+  font-size: 0.71rem;
+  font-weight: 500;
   color: var(--color-text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background-color 0.15s ease;
 }
 
 .day-cell:hover {
@@ -77,12 +79,14 @@
 }
 
 .day-cell.today {
-  color: var(--color-accent);
-  font-weight: 700;
+  color: var(--color-accent-contrast);
+  background: var(--color-accent);
+  font-weight: 650;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent) 45%, transparent);
 }
 
-.day-cell.selected {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-  font-weight: 700;
+.day-cell.selected:not(.today) {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: 650;
 }

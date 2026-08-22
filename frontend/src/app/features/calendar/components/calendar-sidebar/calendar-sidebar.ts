@@ -21,6 +21,7 @@ export class CalendarSidebar implements OnInit {
   readonly createCalendarClicked = output<void>();
   readonly createGroupClicked = output<void>();
   readonly inviteClicked = output<{ calendarId: string; calendarName: string }>();
+  readonly openAiChat = output<void>();
 
   protected readonly displayCalendars = computed(() => {
     const list = this.store.calendars();

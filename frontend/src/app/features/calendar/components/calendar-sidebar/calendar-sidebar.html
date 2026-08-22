@@ -13,6 +13,50 @@
   />
 
   <div class="sidebar-scrollable">
+    <!-- MY CALENDARS SECTION -->
+    <div class="calendar-list calendar-list-primary">
+      <div class="calendar-list-header">
+        <h2 class="calendar-list-title">Lịch của tôi</h2>
+        <button
+          type="button"
+          class="add-calendar-btn"
+          aria-label="Tạo lịch riêng"
+          title="Tạo lịch riêng"
+          (click)="createCalendarClicked.emit()"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="calendar-items-wrapper">
+        @for (cal of displayCalendars(); track cal.id) {
+          <label class="calendar-item" [title]="cal.name">
+            <input
+              type="checkbox"
+              [checked]="isVisible(cal.id)"
+              (change)="store.toggleCalendarVisibility(cal.id)"
+            />
+            <span class="color-dot" [style.background]="colorHex[cal.color]"></span>
+            <span class="calendar-name">{{ cal.name }}</span>
+            <button
+              type="button"
+              class="invite-btn"
+              [attr.aria-label]="'Mời bạn bè vào ' + cal.name"
+              title="Mời bạn bè"
+              (click)="onInviteClicked($event, cal.id, cal.name)"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor"
+                  d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+              </svg>
+            </button>
+          </label>
+        }
+      </div>
+    </div>
+
     <!-- GROUP WORKSPACES SECTION -->
     <div class="calendar-list">
       <div class="calendar-list-header">
@@ -45,50 +89,6 @@
       </div>
     </div>
 
-    <!-- MY CALENDARS SECTION -->
-    <div class="calendar-list">
-      <div class="calendar-list-header">
-        <h2 class="calendar-list-title">Lịch của tôi</h2>
-        <button
-          type="button"
-          class="add-calendar-btn"
-          aria-label="Tạo lịch riêng"
-          title="Tạo lịch riêng"
-          (click)="createCalendarClicked.emit()"
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-            <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" />
-          </svg>
-        </button>
-      </div>
-      
-      <div class="calendar-items-wrapper">
-        @for (cal of displayCalendars(); track cal.id) {
-          <label class="calendar-item" [title]="cal.name">
-            <input
-              type="checkbox"
-              [checked]="isVisible(cal.id)"
-              (change)="store.toggleCalendarVisibility(cal.id)"
-            />
-            <span class="color-dot" [style.background]="colorHex[cal.color]"></span>
-            <span class="calendar-name">{{ cal.name }}</span>
-            <button
-              type="button"
-              class="invite-btn"
-              [attr.aria-label]="'Mời bạn bè vào ' + cal.name"
-              title="Mời bạn bè"
-              (click)="onInviteClicked($event, cal.id, cal.name)"
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16">
-                <path fill="currentColor"
-                  d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-              </svg>
-            </button>
-          </label>
-        }
-      </div>
-    </div>
-
     <!-- OTHER CALENDARS SECTION -->
     <div class="calendar-list">
       <h2 class="calendar-list-title">Lịch khác</h2>
@@ -106,5 +106,14 @@
         }
       </div>
     </div>
+  </div>
+
+  <div class="ai-dock-wrap">
+    <button type="button" class="ai-dock" (click)="openAiChat.emit()">
+      <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+        <path fill="currentColor" d="M12 3l1.6 4.9L18.5 9.5l-4.9 1.6L12 16l-1.6-4.9L5.5 9.5l4.9-1.6L12 3z" />
+      </svg>
+      Hỏi trợ lý AI
+    </button>
   </div>
 </aside>
