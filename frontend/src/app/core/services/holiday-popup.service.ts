@@ -1,98 +1,90 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { HOLIDAY_THEMES } from '../../data/holidays.data';
-import { HolidayTheme, ResolvedHoliday } from '../../models/holiday-theme.model';
-import { dateKey, resolveActiveHoliday } from './holiday-resolver';
+import { HOLIDAYS } from '../../data/holidays.data';
+import { Holiday, HolidayDateRule } from '../../models/holiday-theme.model';
 
-const STORAGE_PREFIX = 'holiday-popup:dismissed:';
+const DISMISS_KEY_PREFIX = 'holiday-popup-dismissed:';
 
-function safeLocalStorage(): Storage | null {
+function isBrowserStorageAvailable(): boolean {
   try {
-    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return null;
-    return window.localStorage;
+    return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
   } catch {
-    return null;
+    // Accessing window/localStorage can throw in locked-down environments
+    // (e.g. sandboxed iframes) — treat that the same as "not available".
+    return false;
   }
 }
 
-function dismissedKey(holidayId: string, date: Date): string {
-  return `${STORAGE_PREFIX}${holidayId}:${dateKey(date)}`;
+function formatDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function matchesDateRule(rule: HolidayDateRule, today: Date): boolean {
+  if (rule.kind === 'fixed') {
+    return today.getMonth() + 1 === rule.month && today.getDate() === rule.day;
+  }
+  const todayKey = formatDateKey(today);
+  return rule.ranges.some(
+    (range) => range.year === today.getFullYear() && todayKey >= range.start && todayKey <= range.end,
+  );
+}
+
+function resolveActiveHoliday(today: Date): Holiday | null {
+  const matches = HOLIDAYS.filter((holiday) => matchesDateRule(holiday.dateRule, today));
+  if (matches.length === 0) return null;
+  return matches.reduce((best, candidate) => (candidate.priority < best.priority ? candidate : best));
 }
 
 /**
- * Cho phép xem trước 1 theme bất kỳ qua URL, vd. `?holiday=christmas`, để
- * QA/demo không phải đợi đúng ngày lễ. Chỉ đọc query string, không lưu lại
- * và không ảnh hưởng logic chọn ngày lễ mặc định.
+ * Resolves which holiday (if any) is active today, and whether its popup
+ * should currently be visible. The dismissal state is remembered per holiday
+ * per calendar day in localStorage, so closing the popup does not bring it
+ * back on every navigation within the same day, but it reappears next year
+ * (or the next matching day).
  */
-function getPreviewHolidayId(): string | null {
-  try {
-    if (typeof window === 'undefined') return null;
-    return new URLSearchParams(window.location.search).get('holiday');
-  } catch {
-    return null;
-  }
-}
-
 @Injectable({ providedIn: 'root' })
 export class HolidayPopupService {
   private readonly today = new Date();
-  // Tăng lên sau mỗi lần dismiss() để buộc `resolved` tính lại và ẩn popup.
-  private readonly dismissTick = signal(0);
-  // Đặt khi người dùng chủ động bấm vào 1 sự kiện ngày lễ trên lịch — ưu tiên
-  // cao nhất, bỏ qua trạng thái "đã đóng hôm nay" vì đây là hành động tra
-  // cứu chủ động, không phải popup tự động.
-  private readonly manualHoliday = signal<HolidayTheme | null>(null);
 
-  readonly resolved = computed<ResolvedHoliday | null>(() => {
-    this.dismissTick();
+  readonly activeHoliday = computed<Holiday | null>(() => resolveActiveHoliday(this.today));
 
-    const manual = this.manualHoliday();
-    if (manual) {
-      return { theme: manual, content: manual.getContent({ date: this.today }) };
-    }
+  private readonly dismissedManually = signal(false);
 
-    const previewId = getPreviewHolidayId();
-    const previewTheme = previewId ? HOLIDAY_THEMES.find((t) => t.id === previewId) : undefined;
-    if (previewTheme) {
-      return { theme: previewTheme, content: previewTheme.getContent({ date: this.today }) };
-    }
-
-    const theme = resolveActiveHoliday(this.today, HOLIDAY_THEMES);
-    if (!theme) return null;
-    if (this.isDismissed(theme.id)) return null;
-
-    return { theme, content: theme.getContent({ date: this.today }) };
+  readonly visible = computed<boolean>(() => {
+    const holiday = this.activeHoliday();
+    if (!holiday) return false;
+    if (this.dismissedManually()) return false;
+    return !this.isDismissedInStorage(holiday);
   });
 
-  /** Hiện popup cho 1 theme cụ thể ngay lập tức, vd. khi bấm vào sự kiện ngày lễ trên lịch. */
-  showHoliday(themeId: string): void {
-    const theme = HOLIDAY_THEMES.find((t) => t.id === themeId);
-    if (theme) this.manualHoliday.set(theme);
+  /** Replaces `{year}` / `{nextYear}` placeholders using today's date. */
+  resolveText(text: string): string {
+    const year = this.today.getFullYear();
+    return text.replace('{year}', String(year)).replace('{nextYear}', String(year + 1));
   }
 
   dismiss(): void {
-    if (this.manualHoliday()) {
-      this.manualHoliday.set(null);
-      return;
-    }
-
-    const current = this.resolved();
-    if (!current) return;
-
-    const storage = safeLocalStorage();
+    this.dismissedManually.set(true);
+    const holiday = this.activeHoliday();
+    if (!holiday || !isBrowserStorageAvailable()) return;
     try {
-      storage?.setItem(dismissedKey(current.theme.id, this.today), '1');
+      window.localStorage.setItem(this.storageKeyFor(holiday), '1');
     } catch {
-      // Storage đầy hoặc bị chặn (chế độ ẩn danh) — bỏ qua, popup vẫn đóng
-      // được trong phiên hiện tại nhờ dismissTick, chỉ không nhớ qua lần tải lại.
+      // Ignore write failures (private browsing quota, etc.) — the in-memory
+      // `dismissedManually` flag still hides the popup for this page visit.
     }
-    this.dismissTick.update((tick) => tick + 1);
   }
 
-  private isDismissed(holidayId: string): boolean {
-    const storage = safeLocalStorage();
-    if (!storage) return false;
+  private storageKeyFor(holiday: Holiday): string {
+    return `${DISMISS_KEY_PREFIX}${holiday.id}:${formatDateKey(this.today)}`;
+  }
+
+  private isDismissedInStorage(holiday: Holiday): boolean {
+    if (!isBrowserStorageAvailable()) return false;
     try {
-      return storage.getItem(dismissedKey(holidayId, this.today)) === '1';
+      return window.localStorage.getItem(this.storageKeyFor(holiday)) === '1';
     } catch {
       return false;
     }

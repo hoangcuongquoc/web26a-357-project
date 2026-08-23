@@ -6,6 +6,7 @@ import { AuthStore } from '../../../core/auth/auth-store';
 import { Clock } from '../../../core/clock';
 import { NotificationKind, NotificationQueue } from '../../../core/realtime/notification-queue';
 import { RealtimeService } from '../../../core/realtime/realtime.service';
+import { GroupStore } from '../../groups/data/group-store';
 import {
   Attendee,
   AttendeeStatus,
@@ -184,9 +185,11 @@ export class CalendarStore {
   private readonly authStore = inject(AuthStore);
   private readonly realtime = inject(RealtimeService);
   private readonly notificationQueue = inject(NotificationQueue);
+  private readonly groupStore = inject(GroupStore);
 
   private readonly apiUrl = environment.apiUrl;
   private readonly selfOriginIds = new Set<string>();
+  private realtimeListenersBound = false;
 
   readonly today = signal(startOfDay(this.clock.now()));
   readonly focusedDate = signal(startOfDay(this.clock.now()));
@@ -225,6 +228,12 @@ export class CalendarStore {
     const map = new Map<string, CalendarColor>();
     for (const c of this.calendars()) map.set(c.id, c.color);
     for (const c of this.otherCalendars) map.set(c.id, c.color);
+    // Group workspace calendars aren't part of `calendars()` (they're listed
+    // separately under "Nhóm làm việc"), so without this their events fall
+    // back to the default blue instead of the group's own color.
+    for (const g of this.groupStore.groups()) {
+      if (g.calendarId) map.set(g.calendarId, g.color);
+    }
     return map;
   });
 
@@ -306,8 +315,20 @@ export class CalendarStore {
     void this.refreshPendingInvites();
 
     this.realtime.connect();
-    this.realtime.onConnect(() => this.joinAllCalendarRooms());
     this.joinAllCalendarRooms();
+    this.bindRealtimeListenersOnce();
+  }
+
+  // loadAll() chạy lại mỗi khi authStore.user() đổi (token refresh, khôi phục
+  // phiên, ...) — nhưng RealtimeService.on()/onConnect() chỉ cộng dồn listener
+  // vào socket dùng chung, không tự gỡ listener cũ. Nếu gọi lại mỗi lần loadAll()
+  // chạy, mỗi sự kiện realtime (event:created, reminder:fire, ...) sẽ bắn trùng
+  // N lần → thông báo/nhắc lịch hiện lặp lại. Bọc guard để chỉ đăng ký 1 lần.
+  private bindRealtimeListenersOnce(): void {
+    if (this.realtimeListenersBound) return;
+    this.realtimeListenersBound = true;
+
+    this.realtime.onConnect(() => this.joinAllCalendarRooms());
     this.realtime.on<EventApiDto>('event:created', (dto) => this.handleRemoteCreated(dto));
     this.realtime.on<EventApiDto>('event:updated', (dto) => this.handleRemoteUpdated(dto));
     this.realtime.on<{ id: string }>('event:deleted', (payload) =>
@@ -513,6 +534,9 @@ export class CalendarStore {
     this.focusedDate.set(startOfDay(date));
   }
 
+  readonly navDirection = signal<'prev' | 'next' | null>(null);
+  private navResetTimer: ReturnType<typeof setTimeout> | null = null;
+
   step(amount: number): void {
     const mode = this.viewMode();
     const unit = mode === 'month' ? 'month' : mode === 'week' ? 'week' : 'day';
@@ -524,6 +548,16 @@ export class CalendarStore {
       }
       if (unit === 'week') return addDays(d, amount * 7);
       return addDays(d, amount);
+    });
+
+    // Clear then re-set on the next frame so consecutive clicks in the same
+    // direction still replay the slide animation (a same-value signal write
+    // wouldn't re-trigger the CSS class toggle the animation depends on).
+    if (this.navResetTimer) clearTimeout(this.navResetTimer);
+    this.navDirection.set(null);
+    requestAnimationFrame(() => {
+      this.navDirection.set(amount > 0 ? 'next' : 'prev');
+      this.navResetTimer = setTimeout(() => this.navDirection.set(null), 280);
     });
   }
 
@@ -789,9 +823,14 @@ export class CalendarStore {
   }
 
   async sendAiChat(message: string, calendarId: string): Promise<AiChatResult> {
-    return firstValueFrom(
+    const result = await firstValueFrom(
       this.http.post<AiChatResult>(`${this.apiUrl}/ai/chat`, { message, calendarId }),
     );
+    if (result.intent === 'create_event') {
+      this.markSelfOrigin(result.event.id);
+      this.upsertEvent(toCalendarEvent(result.event));
+    }
+    return result;
   }
 }
 

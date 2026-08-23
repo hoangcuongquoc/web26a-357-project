@@ -1,0 +1,1100 @@
+:host {
+  display: block;
+}
+
+/* Fixed white/blue brand identity ("giống Meta") — deliberately overrides
+   the shared app tokens locally so this page looks the same regardless of
+   the app's dark-mode toggle or selected brand theme (that's why the
+   theme-toggle button was removed from the nav below: it would otherwise
+   sit there doing nothing, since these overrides always win). */
+.landing {
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f5f6f7;
+  --color-surface-hover-strong: #e4e6eb;
+  --color-border: #e4e6eb;
+  --color-border-strong: #d3d6db;
+
+  --color-text: #050505;
+  --color-text-secondary: #1c1e21;
+  --color-text-tertiary: #65676b;
+  --color-text-faint: #8a8d91;
+
+  --color-accent: #0866ff;
+  --color-accent-hover: #0055d4;
+  --color-accent-soft: #e7f0ff;
+  --color-accent-contrast: #ffffff;
+
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px rgba(5, 5, 5, 0.06);
+  --shadow-card: 0 2px 8px rgba(5, 5, 5, 0.06);
+  --shadow-popover: 0 12px 28px -6px rgba(8, 102, 255, 0.16);
+  --shadow-modal: 0 24px 56px -12px rgba(8, 102, 255, 0.2);
+
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  overflow-x: clip;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ===== SCROLL PROGRESS =====
+   Driven by a CSS scroll timeline, which the browser runs on the compositor —
+   the bar tracks the scrollbar without a single JS frame. Browsers without
+   scroll timelines simply never see the bar grow, which costs nothing. */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 200;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--color-accent) 0%, #00c2ff 60%, #7db0ff 100%);
+  pointer-events: none;
+}
+
+@supports (animation-timeline: scroll()) {
+  .scroll-progress {
+    animation: progressGrow linear both;
+    animation-timeline: scroll(root block);
+  }
+}
+
+@keyframes progressGrow {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.nav-sentinel {
+  position: absolute;
+  top: 0;
+  height: 1px;
+  width: 1px;
+  pointer-events: none;
+}
+
+/* ===== NAV ===== */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid transparent;
+  background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  box-shadow: 0 1px 0 transparent;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.nav.scrolled {
+  border-bottom-color: var(--color-border);
+  box-shadow: 0 4px 16px -8px rgba(5, 5, 5, 0.1);
+}
+
+.nav-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0.85rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex: 1;
+}
+
+.nav-links a {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  transition: color 0.15s ease;
+}
+
+.nav-links a:hover {
+  color: var(--color-accent);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-shrink: 0;
+}
+
+.nav-cta {
+  border-radius: var(--radius-md);
+  padding: 0.5rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-accent-contrast);
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%);
+  box-shadow: 0 2px 10px rgba(8, 102, 255, 0.3);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+.nav-cta:hover {
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 6px 18px rgba(8, 102, 255, 0.45);
+}
+
+@media (max-width: 760px) {
+  .nav-links {
+    display: none;
+  }
+}
+
+/* ===== SHARED SECTION LAYOUT ===== */
+
+/* Jump targets stop below the sticky nav instead of sliding underneath it. */
+#features,
+#how-it-works,
+#faq {
+  scroll-margin-top: 5.5rem;
+}
+
+main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.section-head {
+  max-width: 620px;
+  margin: 0 auto 2.75rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.section-kicker {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.section-head h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.section-head p {
+  margin: 0;
+  font-size: 0.975rem;
+  line-height: 1.6;
+  color: var(--color-text-tertiary);
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scroll-triggered reveal (everything below the hero) — uses the `translate`
+   individual property rather than `transform`, so it never fights with a
+   component's own hover transform (e.g. .feature-card's lift-on-hover);
+   the two compose independently instead of one overriding the other. */
+[data-reveal] {
+  opacity: 0;
+  translate: 0 34px;
+  scale: 0.985;
+  transition:
+    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+    translate 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+    scale 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-reveal].is-revealed {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1;
+    translate: 0 0;
+    transition: none;
+  }
+}
+
+/* ===== HERO ===== */
+.hero {
+  position: relative;
+  padding: 5.5rem 0 4rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 3rem;
+  align-items: center;
+  overflow: hidden;
+}
+
+.hero-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(90px);
+  z-index: 0;
+}
+
+.hero-orb-1 {
+  width: 420px;
+  height: 420px;
+  top: -12rem;
+  left: -8rem;
+  background: rgba(8, 102, 255, 0.16);
+  animation: orbDrift1 18s ease-in-out infinite alternate;
+}
+
+.hero-orb-2 {
+  width: 380px;
+  height: 380px;
+  bottom: -10rem;
+  right: -6rem;
+  background: rgba(0, 194, 255, 0.16);
+  animation: orbDrift2 22s ease-in-out infinite alternate;
+}
+
+/* `translate`/`scale` only — the blur stays fixed, so these never re-rasterize
+   the (expensive) 90px blur; the compositor just moves the cached layer. */
+@keyframes orbDrift1 {
+  to {
+    translate: 60px 40px;
+    scale: 1.12;
+  }
+}
+
+@keyframes orbDrift2 {
+  to {
+    translate: -50px -35px;
+    scale: 1.08;
+  }
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+/* Staggered entrance — each element waits its turn instead of the whole
+   column sliding up as one block. */
+.hero-step {
+  animation: fadeSlideUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hero-kicker.hero-step {
+  animation-delay: 0.05s;
+}
+
+.hero-subtitle.hero-step {
+  animation-delay: 0.55s;
+}
+
+.hero-actions.hero-step {
+  animation-delay: 0.68s;
+}
+
+.hero-badges.hero-step {
+  animation-delay: 0.8s;
+}
+
+.hero-kicker {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.hero-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(2.3rem, 5vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: var(--color-text);
+}
+
+/* Each line rises out from behind its own clipping box. The negative margin
+   cancels the padding that keeps descenders (the "g" in "cùng") from being
+   sliced off by that same overflow clip. */
+.hero-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+}
+
+.hero-line-inner {
+  display: block;
+  animation: lineRise 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hero-line:nth-child(1) .hero-line-inner {
+  animation-delay: 0.18s;
+}
+
+/* Line 2 is .hero-title-gradient, which sets its own delay alongside the
+   shimmer — deliberately not given a delay here, since a more specific rule
+   would collapse that two-animation delay list back down to one value. */
+
+@keyframes lineRise {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-title-gradient {
+  background: linear-gradient(
+    100deg,
+    var(--color-accent) 0%,
+    #00c2ff 30%,
+    #a5c9ff 45%,
+    #00c2ff 60%,
+    var(--color-accent) 100%
+  );
+  background-size: 250% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation:
+    lineRise 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.32s both,
+    heroShimmer 7s linear 1.4s infinite;
+}
+
+@keyframes heroShimmer {
+  to {
+    background-position: -150% center;
+  }
+}
+
+.hero-subtitle {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--color-text-tertiary);
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-top: 0.35rem;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.5rem;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--color-accent-contrast);
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%);
+  box-shadow: 0 6px 20px rgba(8, 102, 255, 0.35);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 28px rgba(8, 102, 255, 0.5);
+  filter: brightness(1.05);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.4rem;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-secondary:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
+.hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.hero-badges span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 0.35rem 0.75rem;
+}
+
+.hero-preview {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  animation: fadeSlideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.45s both;
+}
+
+/* Gentle scroll parallax — the card drifts against the page as you leave the
+   hero. Uses a view timeline, so it is compositor-driven like the progress bar
+   and adds no per-frame JS. */
+@supports (animation-timeline: view()) {
+  .hero-preview {
+    animation:
+      fadeSlideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.45s both,
+      heroParallax linear both;
+    animation-timeline: auto, view();
+    animation-range: normal, cover 20% cover 100%;
+  }
+}
+
+@keyframes heroParallax {
+  to {
+    translate: 0 -46px;
+  }
+}
+
+.preview-card {
+  width: 100%;
+  max-width: 360px;
+  border-radius: var(--radius-xl);
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-modal);
+  padding: 1.25rem 1.35rem;
+  animation: previewFloat 7s ease-in-out infinite alternate;
+}
+
+@keyframes previewFloat {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-10px);
+  }
+}
+
+.preview-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-bottom: 0.85rem;
+  margin-bottom: 0.85rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.preview-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+}
+
+.dot-red {
+  background: #ef4444;
+}
+.dot-yellow {
+  background: #f59e0b;
+}
+.dot-green {
+  background: #22c55e;
+}
+
+.preview-title {
+  margin-left: 0.4rem;
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.preview-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.preview-chip {
+  margin-top: 0.3rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chip-indigo {
+  background: #0866ff;
+  box-shadow: 0 0 8px rgba(8, 102, 255, 0.6);
+}
+.chip-pink {
+  background: #00c2ff;
+  box-shadow: 0 0 8px rgba(0, 194, 255, 0.6);
+}
+.chip-teal {
+  background: #60a5fa;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
+}
+
+.preview-item-title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.preview-item-time {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+}
+
+@media (max-width: 860px) {
+  .hero {
+    grid-template-columns: 1fr;
+    padding-top: 3.5rem;
+    text-align: center;
+  }
+  .hero-kicker {
+    align-self: center;
+  }
+  .hero-actions,
+  .hero-badges {
+    justify-content: center;
+  }
+  .hero-subtitle {
+    max-width: none;
+    margin: 0 auto;
+  }
+}
+
+/* ===== MARQUEE =====
+   Full-bleed out of `main`'s 1120px column. The track holds two identical
+   groups and slides exactly one group-width, so the loop point is seamless. */
+.marquee {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-top: 1.5rem;
+  padding: 0.9rem 0;
+  overflow: hidden;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(90deg, var(--color-accent-soft) 0%, #ffffff 50%, var(--color-accent-soft) 100%);
+  /* Fades the strip out at both edges instead of cutting it off hard. */
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marqueeSlide 34s linear infinite;
+}
+
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+.marquee-group {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.marquee-item {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.marquee-sep {
+  margin: 0 1.35rem;
+  font-size: 0.7rem;
+  color: var(--color-accent);
+}
+
+@keyframes marqueeSlide {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ===== STATS ===== */
+.stats {
+  padding: 3.5rem 0 4.5rem;
+  text-align: center;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1.35rem 0.75rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.stat:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-popover);
+}
+
+.stat-value {
+  font-family: var(--font-heading);
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  /* Digits keep a fixed width so the box doesn't twitch while counting up. */
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(135deg, var(--color-accent) 0%, #00c2ff 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-wrap: balance;
+  color: var(--color-text-tertiary);
+}
+
+@media (max-width: 760px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ===== FEATURES ===== */
+.features {
+  padding: 2rem 0 5rem;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.feature-card {
+  --mx: 50%;
+  --my: 50%;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+/* Cursor spotlight. The gradient's centre is fed by --mx/--my, which the
+   component writes once per frame from outside the Angular zone. */
+.feature-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    16rem circle at var(--mx) var(--my),
+    rgba(8, 102, 255, 0.13),
+    rgba(0, 194, 255, 0.06) 45%,
+    transparent 72%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.feature-card:hover::before {
+  opacity: 1;
+}
+
+/* Keeps the card's real content above the spotlight layer. */
+.feature-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.feature-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-popover);
+  border-color: var(--color-accent);
+}
+
+.feature-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-soft);
+  margin-bottom: 1rem;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.feature-card:hover .feature-icon {
+  transform: scale(1.12) rotate(-4deg);
+}
+
+.feature-card h3 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.feature-card p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--color-text-tertiary);
+}
+
+@media (max-width: 860px) {
+  .feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== HOW IT WORKS ===== */
+.how-it-works {
+  padding: 2rem 0 5rem;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.step {
+  position: relative;
+  padding: 1.75rem 1.5rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.step-number {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--color-accent) 0%, #00c2ff 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.step h3 {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.step p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--color-text-tertiary);
+}
+
+@media (max-width: 760px) {
+  .steps {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== FAQ ===== */
+.faq {
+  padding: 2rem 0 5rem;
+}
+
+.faq-list {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.faq-item {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.faq-item.open {
+  border-color: var(--color-accent);
+}
+
+.faq-question {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.05rem 1.25rem;
+  border: none;
+  background: none;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.faq-toggle-icon {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 1rem;
+  font-weight: 700;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.faq-item.open .faq-toggle-icon {
+  transform: rotate(45deg);
+}
+
+.faq-answer {
+  margin: 0;
+  padding: 0 1.25rem 1.15rem;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--color-text-tertiary);
+  animation: fadeSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ===== FINAL CTA ===== */
+.final-cta {
+  padding: 2rem 0 5.5rem;
+}
+
+.final-cta-card {
+  position: relative;
+  text-align: center;
+  padding: 3.5rem 2rem;
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(at 15% 20%, rgba(8, 102, 255, 0.14) 0px, transparent 55%),
+    radial-gradient(at 85% 80%, rgba(0, 194, 255, 0.14) 0px, transparent 55%),
+    var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+}
+
+.final-cta-card h2 {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-heading);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.final-cta-card p {
+  margin: 0 0 1.5rem;
+  font-size: 0.95rem;
+  color: var(--color-text-tertiary);
+}
+
+/* ===== FOOTER ===== */
+.footer {
+  border-top: 1px solid var(--color-border);
+  padding: 2.5rem 1.5rem 1.75rem;
+}
+
+.footer-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.footer-brand p {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-tertiary);
+}
+
+.footer-links {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.footer-links a {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  transition: color 0.15s ease;
+}
+
+.footer-links a:hover {
+  color: var(--color-accent);
+}
+
+.footer-copyright {
+  max-width: 1120px;
+  margin: 2rem auto 0;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--color-text-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-step,
+  .hero-line-inner,
+  .hero-title-gradient,
+  .hero-orb,
+  .hero-preview,
+  .feature-card,
+  .faq-answer,
+  .preview-card,
+  .marquee-track,
+  .scroll-progress {
+    animation: none !important;
+  }
+
+  /* The entrance keyframes use `both`, so cancelling them mid-flight would
+     otherwise strand these elements at their `from` (invisible) state. */
+  .hero-step,
+  .hero-line-inner,
+  .hero-preview {
+    opacity: 1;
+    transform: none;
+  }
+
+  .hero-title-gradient {
+    background-position: 0 center;
+  }
+
+  .stat,
+  .feature-card,
+  .feature-card::before {
+    transition: none;
+  }
+}

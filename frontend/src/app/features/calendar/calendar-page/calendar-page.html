@@ -16,35 +16,56 @@
       />
     }
 
-    <main class="view-area">
-      @switch (store.viewMode()) {
-        @case ('month') {
-          <app-month-view
-            (createRequested)="openCreate($event)"
-            (editRequested)="openEdit($event)"
-          />
-        }
-        @case ('week') {
-          <app-time-grid-view
-            [days]="weekDays()"
-            (createRequested)="openCreate($event)"
-            (editRequested)="openEdit($event)"
-          />
-        }
-        @case ('day') {
-          <app-time-grid-view
-            [days]="dayViewDays()"
-            (createRequested)="openCreate($event)"
-            (editRequested)="openEdit($event)"
-          />
-        }
-        @case ('agenda') {
-          <app-agenda-view (selectEvent)="onViewDetail($event)" />
+    <main
+      class="view-area"
+      [class.nav-next]="store.navDirection() === 'next'"
+      [class.nav-prev]="store.navDirection() === 'prev'"
+    >
+      @if (store.calendarsLoading()) {
+        <div class="view-skeleton" aria-hidden="true">
+          @for (col of [0, 1, 2, 3, 4, 5, 6]; track col) {
+            <div class="skeleton-col">
+              <div class="skeleton-bar skeleton-day"></div>
+              <div class="skeleton-bar" style="width: 82%; animation-delay: 0.05s"></div>
+              <div class="skeleton-bar" style="width: 55%; animation-delay: 0.1s"></div>
+              <div class="skeleton-bar" style="width: 68%; animation-delay: 0.15s"></div>
+            </div>
+          }
+        </div>
+      } @else {
+        @switch (store.viewMode()) {
+          @case ('month') {
+            <app-month-view
+              (createRequested)="openCreate($event)"
+              (editRequested)="openEdit($event)"
+            />
+          }
+          @case ('week') {
+            <app-time-grid-view
+              [days]="weekDays()"
+              (createRequested)="openCreate($event)"
+              (editRequested)="openEdit($event)"
+            />
+          }
+          @case ('day') {
+            <app-time-grid-view
+              [days]="dayViewDays()"
+              (createRequested)="openCreate($event)"
+              (editRequested)="openEdit($event)"
+            />
+          }
+          @case ('agenda') {
+            <app-agenda-view (selectEvent)="onViewDetail($event)" />
+          }
         }
       }
     </main>
   </div>
 </div>
+
+@if (holidayInfoEvent(); as holidayEvent) {
+  <app-holiday-info-modal [event]="holidayEvent" (closed)="holidayInfoEvent.set(null)" />
+}
 
 @if (modalState(); as ms) {
   <app-event-form-modal
@@ -93,6 +114,53 @@
 
 @if (groupStore.activeWorkspaceModalOpen()) {
   <app-group-workspace-modal (closed)="groupStore.closeWorkspaceModal()" />
+}
+
+@if (namePromptOpen()) {
+  <div class="name-prompt-backdrop">
+    <div class="name-prompt-card" role="dialog" aria-modal="true">
+      <div class="name-prompt-icon">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      </div>
+
+      <h2 class="name-prompt-title">Chào mừng bạn đến với Workflow!</h2>
+      <p class="name-prompt-desc">
+        Vui lòng chọn <strong>Tên hiển thị</strong> của bạn. Tên này sẽ xuất hiện trên lịch và khi tham gia nhóm làm việc.
+      </p>
+
+      <div class="name-prompt-field">
+        <input
+          type="text"
+          class="name-prompt-input"
+          placeholder="Nhập tên của bạn (VD: Hoàng Cường)"
+          [value]="nameDraft()"
+          (input)="nameDraft.set($any($event.target).value)"
+          (keyup.enter)="saveDisplayName()"
+        />
+      </div>
+
+      <div class="name-prompt-actions">
+        <button
+          type="button"
+          class="name-prompt-submit-btn"
+          [disabled]="savingName() || !nameDraft().trim()"
+          (click)="saveDisplayName()"
+        >
+          {{ savingName() ? 'Đang lưu…' : 'Bắt đầu sử dụng' }}
+        </button>
+        <button
+          type="button"
+          class="name-prompt-skip-btn"
+          (click)="namePromptOpen.set(false)"
+        >
+          Bỏ qua (Đặt tên sau)
+        </button>
+      </div>
+    </div>
+  </div>
 }
 
 <app-notification-popup (viewDetail)="onViewDetail($event)" />

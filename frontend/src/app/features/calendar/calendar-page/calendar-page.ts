@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { AuthStore } from '../../../core/auth/auth-store';
 import { DensityService } from '../../../core/density/density-service';
 import { NotificationQueue } from '../../../core/realtime/notification-queue';
 import { AiChatWidget } from '../../ai-assistant/ai-chat-widget';
@@ -7,6 +8,7 @@ import { CalendarHeader } from '../components/calendar-header/calendar-header';
 import { CalendarSidebar } from '../components/calendar-sidebar/calendar-sidebar';
 import { CreateCalendarModal } from '../components/create-calendar-modal/create-calendar-modal';
 import { EventFormModal } from '../components/event-form-modal/event-form-modal';
+import { HolidayInfoModal } from '../components/holiday-info-modal/holiday-info-modal';
 import { InviteModal } from '../components/invite-modal/invite-modal';
 import { CreateRequest, MonthView } from '../components/month-view/month-view';
 import { NotificationPopup } from '../components/notification-popup/notification-popup';
@@ -16,14 +18,13 @@ import { ImportModalComponent } from '../components/import-modal/import-modal';
 import { SettingsModal } from '../components/settings-modal/settings-modal';
 import { TrashModal } from '../components/trash-modal/trash-modal';
 import { CalendarStore } from '../data/calendar-store';
-import { VN_HOLIDAY_CALENDAR_ID, resolveHolidayThemeId } from '../data/vietnam-holidays';
+import { VN_HOLIDAY_CALENDAR_ID } from '../data/vietnam-holidays';
 import { CalendarEvent } from '../models/calendar.models';
 import { addMinutes, buildWeekDays } from '../utils/date-utils';
 import { CreateGroupModal } from '../../groups/components/create-group-modal/create-group-modal';
 import { GroupWorkspaceModal } from '../../groups/components/group-workspace-modal/group-workspace-modal';
 import { GroupStore } from '../../groups/data/group-store';
-import { HolidayPopup } from '../../../shared/components/holiday-popup/holiday-popup';
-import { HolidayPopupService } from '../../../core/services/holiday-popup.service';
+import { HolidayPopupComponent } from '../../../shared/components/holiday-popup/holiday-popup.component';
 
 interface ModalState {
   event: CalendarEvent | null;
@@ -53,22 +54,24 @@ interface ModalState {
     CreateGroupModal,
     GroupWorkspaceModal,
     NotificationPopup,
-    HolidayPopup,
     NotesWidget,
     AiChatWidget,
+    HolidayPopupComponent,
+    HolidayInfoModal,
   ],
 })
 export class CalendarPage {
   protected readonly store = inject(CalendarStore);
   protected readonly groupStore = inject(GroupStore);
+  protected readonly authStore = inject(AuthStore);
   private readonly notificationQueue = inject(NotificationQueue);
   private readonly densityService = inject(DensityService);
-  private readonly holidayPopupService = inject(HolidayPopupService);
 
   protected readonly weekDays = computed(() => buildWeekDays(this.store.focusedDate()));
   protected readonly dayViewDays = computed(() => [this.store.focusedDate()]);
 
   protected readonly modalState = signal<ModalState | null>(null);
+  protected readonly holidayInfoEvent = signal<CalendarEvent | null>(null);
   protected readonly importModalOpen = signal(false);
   protected readonly trashModalOpen = signal(false);
   protected readonly settingsModalOpen = signal(false);
@@ -78,12 +81,35 @@ export class CalendarPage {
   protected readonly createCalendarModalOpen = signal(false);
   protected readonly createGroupModalOpen = signal(false);
 
+  protected readonly namePromptOpen = signal(false);
+  protected readonly nameDraft = signal('');
+  protected readonly savingName = signal(false);
+
   constructor() {
     this.notificationQueue.requestPermission();
+
+    // Check if user needs to set a display name after logging in
+    const currentName = this.authStore.displayName();
+    const userEmail = this.authStore.user()?.email;
+    if (!currentName || currentName === userEmail) {
+      this.nameDraft.set(currentName ?? '');
+      this.namePromptOpen.set(true);
+    }
+  }
+
+  async saveDisplayName(): Promise<void> {
+    const name = this.nameDraft().trim();
+    if (!name) return;
+    this.savingName.set(true);
+    await this.authStore.updateDisplayName(name);
+    this.savingName.set(false);
+    this.namePromptOpen.set(false);
   }
 
   onViewDetail(eventId: string): void {
-    const event = this.store.events().find((e) => e.id === eventId);
+    // Must search visibleEvents (not just events), since agenda items can be
+    // read-only holiday entries that live in a separate static list.
+    const event = this.store.visibleEvents().find((e) => e.id === eventId);
     if (event) this.openEdit(event);
   }
 
@@ -110,11 +136,8 @@ export class CalendarPage {
   }
 
   openEdit(event: CalendarEvent): void {
-    // Ngày lễ Việt Nam chỉ để tham khảo, không sửa/xoá được như event thật —
-    // bấm vào thì mở popup theme ngày lễ tương ứng thay vì form chỉnh sửa.
     if (event.calendarId === VN_HOLIDAY_CALENDAR_ID) {
-      const themeId = resolveHolidayThemeId(event);
-      if (themeId) this.holidayPopupService.showHoliday(themeId);
+      this.holidayInfoEvent.set(event);
       return;
     }
     this.modalState.set({

@@ -1,7 +1,20 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { AuthStore } from '../../../../core/auth/auth-store';
 import { Density, DensityService } from '../../../../core/density/density-service';
+import { BrandTheme, BrandThemeService } from '../../../../core/theme/brand-theme-service';
 import { Theme, ThemeService } from '../../../../core/theme/theme-service';
+
+interface BrandThemeOption {
+  readonly value: BrandTheme;
+  readonly label: string;
+  readonly swatch: string;
+}
+
+const BRAND_THEME_OPTIONS: readonly BrandThemeOption[] = [
+  { value: 'default', label: 'Xanh dương', swatch: '#0866ff' },
+  { value: 'teal', label: 'Xanh ngọc', swatch: '#0f766e' },
+  { value: 'violet', label: 'Tím', swatch: '#7c3aed' },
+];
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
@@ -13,8 +26,11 @@ const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 })
 export class SettingsModal {
   protected readonly themeService = inject(ThemeService);
+  protected readonly brandThemeService = inject(BrandThemeService);
   protected readonly densityService = inject(DensityService);
   protected readonly authStore = inject(AuthStore);
+
+  protected readonly brandThemeOptions = BRAND_THEME_OPTIONS;
 
   readonly closed = output<void>();
 
@@ -26,6 +42,10 @@ export class SettingsModal {
 
   setTheme(theme: Theme): void {
     this.themeService.setTheme(theme);
+  }
+
+  setBrandTheme(theme: BrandTheme): void {
+    this.brandThemeService.setBrandTheme(theme);
   }
 
   setDensity(density: Density): void {

@@ -1,64 +1,75 @@
 /**
- * Kiểu trang trí có sẵn cho popup ngày lễ. Mỗi component trang trí (fireworks,
- * snow, ...) được implement một lần trong HolidayPopup và tái sử dụng cho mọi
- * theme thông qua mảng `decorations` — thêm ngày lễ mới không cần thêm CSS mới,
- * trừ khi cần một loại trang trí hoàn toàn mới.
+ * Data model for the Holiday Popup system. A holiday is fully described by a
+ * date rule (when it should appear), a visual theme (colors + decoration),
+ * and its display content. Adding a new holiday never requires touching the
+ * component or service — see `data/holidays.data.ts`.
  */
-export type HolidayDecoration =
-  | 'fireworks'
-  | 'confetti'
-  | 'blossom'
-  | 'lucky-envelope'
-  | 'petals'
-  | 'gold-star'
-  | 'books'
-  | 'hearts'
-  | 'pumpkin-patch'
-  | 'snow'
-  | 'christmas-tree';
 
-export interface HolidayDateRuleFixed {
-  readonly kind: 'fixed';
-  readonly month: number; // 1-12
-  readonly day: number;
-  /** Số ngày popup còn hiển thị tính từ ngày bắt đầu. Mặc định 1. */
-  readonly durationDays?: number;
-}
+/** Lower number = shown first when multiple holidays match the same day. */
+export type HolidayPriority = number;
 
 /**
- * Dùng cho ngày lễ âm lịch (Tết Nguyên Đán): ngày dương lịch tương ứng khác
- * nhau mỗi năm nên phải cấu hình thủ công theo từng năm, không suy đoán.
+ * When a holiday should be considered "active":
+ * - `fixed`: recurs every year on the same Gregorial month/day (most holidays).
+ * - `explicit`: a per-year curated list of date ranges. Used for lunar-based
+ *   holidays (Tết Nguyên Đán) where the Gregorian date shifts every year and
+ *   must never be guessed — only dates explicitly configured here are used.
  */
-export interface HolidayDateRuleYearlyMap {
-  readonly kind: 'yearly-map';
-  readonly datesByYear: Readonly<Record<number, readonly [month: number, day: number]>>;
-  readonly durationDays?: number;
-}
+export type HolidayDateRule =
+  | { readonly kind: 'fixed'; readonly month: number; readonly day: number }
+  | {
+      readonly kind: 'explicit';
+      readonly ranges: ReadonlyArray<{
+        readonly year: number;
+        /** Inclusive, format YYYY-MM-DD. */
+        readonly start: string;
+        /** Inclusive, format YYYY-MM-DD. */
+        readonly end: string;
+      }>;
+    };
 
-export type HolidayDateRule = HolidayDateRuleFixed | HolidayDateRuleYearlyMap;
+/** How the floating decorative particles behave. */
+export type HolidayParticleAnimation = 'fall' | 'float' | 'burst' | 'twinkle';
 
-export interface HolidayContent {
-  readonly title: string;
-  readonly subtitle?: string;
+/** Small, finite set of inline-SVG motifs reused across holidays. */
+export type HolidayCornerMotif = 'star' | 'heart' | 'blossom' | 'snowflake';
+
+export interface HolidayDecoration {
+  /** Emoji cycled through for the floating particle layer. */
+  readonly particleEmoji: readonly string[];
+  readonly particleAnimation: HolidayParticleAnimation;
+  /** Defaults to 14 when omitted. */
+  readonly particleCount?: number;
+  /** Watermark SVG shown in a corner of the popup. Omit for none. */
+  readonly cornerMotif?: HolidayCornerMotif;
 }
 
 export interface HolidayTheme {
-  readonly id: string;
-  /** Số nhỏ hơn = ưu tiên cao hơn khi nhiều ngày lễ trùng ngày. */
-  readonly priority: number;
-  readonly dateRule: HolidayDateRule;
-  readonly icon: string;
-  readonly decorations: readonly HolidayDecoration[];
-  readonly colors: {
-    readonly background: string;
-    readonly accent: string;
-    readonly accentSoft: string;
-    readonly text: string;
-  };
-  readonly getContent: (context: { readonly date: Date }) => HolidayContent;
+  /** CSS `background` value (solid color or gradient). */
+  readonly background: string;
+  /** Accent color used for the corner motif and small highlights. */
+  readonly accent: string;
+  readonly textColor: string;
+  readonly subtitleColor: string;
+  readonly decoration: HolidayDecoration;
 }
 
-export interface ResolvedHoliday {
+export interface HolidayContent {
+  /** Headline emoji shown above the title. */
+  readonly emoji?: string;
+  /** Supports `{year}` / `{nextYear}` placeholders, resolved at render time. */
+  readonly title: string;
+  /** Supports `{year}` / `{nextYear}` placeholders. */
+  readonly subtitle?: string;
+}
+
+export interface Holiday {
+  /** Stable identifier, also used as the localStorage dismissal key. */
+  readonly id: string;
+  /** Human-readable label for maintainers (not shown to end users). */
+  readonly name: string;
+  readonly priority: HolidayPriority;
+  readonly dateRule: HolidayDateRule;
   readonly theme: HolidayTheme;
   readonly content: HolidayContent;
 }
